@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- allowBackup=false: app data never goes to cloud backups. -->
+    <application
+        android:allowBackup="false"
+        android:label="Hven"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <!-- The screen opened from the launcher icon. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

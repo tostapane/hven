@@ -2,8 +2,6 @@
 
 An open-source Android app: a **private assistant that runs a small LLM entirely on-device** and can actually do things on the phone (reminders, calendar, notes, notifications), with no cloud and no dependency on Google services.
 
-Inspired by **DwarfStar 4 (antirez/ds4)**: instead of a generic model runner, a narrow stack where every supported model is validated end to end (prompt format, tool calls, quantization, cache, evals).
-
 **Name:** Hven is the island where Tycho Brahe built Uraniborg and made the most precise observations of his era without a telescope. Simple instruments, maximum precision: a small model on a phone, made reliable.
 
 ## Goals
@@ -45,7 +43,13 @@ Voice, iOS, cloud fallback, a generic model browser.
 
 ## Tech stack
 
-Not decided yet. Every choice must follow KISS and be agreed on before any code depends on it.
+Every choice must follow KISS and be agreed on before any code depends on it. Agreed so far:
+
+- **App:** Kotlin + Jetpack Compose.
+- **Inference:** llama.cpp (C/C++, via the NDK), called from Kotlin through JNI. Later, hot paths get replaced by our own model-specific code.
+- **Build:** Gradle + CMake.
+
+Everything else gets decided when a milestone needs it.
 
 ## Structure
 
@@ -71,6 +75,6 @@ No code yet. The layout gets defined at M0 and documented here.
 
 ## Dev environment
 
-- Arch Linux, Neovim. No Android Studio; command-line toolchain only.
+- Arch Linux, Neovim. Command-line toolchain for building; Android Studio is fine for testing and debugging.
 - Android SDK platform-tools (`adb`) for installing, logs (`adb logcat`) and profiling (`simpleperf`, Perfetto, `adb shell dumpsys batterystats`). The rest of the toolchain follows the stack choice.
 - Always test on a **physical device**; emulators are useless for performance.
