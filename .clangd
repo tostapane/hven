@@ -1,0 +1,4 @@
+# Tells clangd (C++ language server) how the native code is compiled.
+# Gradle generates it on every build; native code is always built as "release" (see app/build.gradle.kts).
+CompileFlags:
+  CompilationDatabase: app/.cxx/tools/release/arm64-v8a

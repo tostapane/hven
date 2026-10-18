@@ -17,7 +17,7 @@ An open-source Android app: a **private assistant that runs a small LLM entirely
 - **M1 — Inference:** load one model on-device and stream tokens to the UI.
 - **M2 — Tool calls:** model adapter for the chosen model, grammar-constrained tool calls, about 5 tools (alarm, timer, calendar event, note, open app).
 - **M3 — KV cache:** save and load prefix state to disk. Measure time-to-first-token with vs without.
-- **M4 — Eval suite:** automated task set on real devices measuring success rate, time-to-first-token, tokens/sec and battery. Compare candidate models (Gemma 4 E2B vs Qwen3 1.7B/4B) and pick the v1 model.
+- **M4 — Eval suite:** automated task set on real devices measuring success rate, time-to-first-token, tokens/sec and battery. Compare candidate models (Qwen3.5-2B vs Gemma 4 E2B) and pick the v1 model.
 - **M5 — Assistant features:** keep the model warm in the background, read notifications, persistent memory.
 - **Later:** model-specific kernels, GPU backend, NPU, AppFunctions backend, more validated models.
 
@@ -53,8 +53,13 @@ Everything else gets decided when a milestone needs it.
 
 ## Structure
 
-No code yet. The layout gets defined at M0 and documented here.
-
+- `app/`: the Android app (one Gradle module).
+  - `src/main/kotlin/io/github/tostapane/hven/`: Kotlin sources.
+  - `src/main/cpp/`: native code (`CMakeLists.txt` builds `libhven.so`).
+  - `src/main/AndroidManifest.xml`: app name, screens, permissions.
+- `gradle/libs.versions.toml`: every dependency version, in one place.
+- `settings.gradle.kts`, `build.gradle.kts`, `app/build.gradle.kts`: build config.
+- `gradlew`, `gradle/wrapper/`: pinned Gradle; build with `./gradlew installDebug`.
 - `AGENTS.md`: rules, structure and goals. Stable; no progress tracking here.
 - `CLAUDE.md`: points to this file.
 - `TODO.md`: local and gitignored. What's done, what's missing, open questions.
