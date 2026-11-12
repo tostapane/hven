@@ -84,11 +84,14 @@ static void fill_batch(llama_batch_ext *batch, const llama_token *tokens, int n_
     llama_batch_ext_set_output_logits(batch, n_tokens - 1, true);
 }
 
-// Returns the handle, or 0 if the model can't be loaded.
+// Returns the handle, or 0 if the model can't be loaded or the grammar doesn't parse.
+// The grammar stays off until the model emits trigger_token.
 extern "C" JNIEXPORT jlong JNICALL
 Java_io_github_tostapane_hven_LlamaEngine_load(JNIEnv *env, jobject /* this */, jstring path,
-                                               jint context_size, jint threads, jfloat temperature,
-                                               jint top_k, jfloat presence_penalty) {
+                                               jint context_size, jint prompt_threads, jint generation_threads,
+                                               jfloat temperature,
+                                               jint top_k, jfloat presence_penalty,
+                                               jstring grammar, jint trigger_token) {
     llama_log_set(log_to_logcat, nullptr);
     llama_backend_init();
 
@@ -99,17 +102,30 @@ Java_io_github_tostapane_hven_LlamaEngine_load(JNIEnv *env, jobject /* this */, 
 
     llama_context_params params = llama_context_default_params();
     params.n_ctx = context_size;
-    params.n_threads = threads;
-    params.n_threads_batch = threads;
+    params.n_threads = generation_threads;
+    params.n_threads_batch = prompt_threads;
+    params.n_outputs_max = 1;  // we only read the last token's logits: saves ~500 MB
     llama_context *ctx = llama_init_from_model(model, params);
     if (!ctx) {
         llama_model_free(model);
         return 0;
     }
 
-    // How the next token is picked from the model's predictions.
     const llama_vocab *vocab = llama_model_get_vocab(model);
+    const char *c_grammar = env->GetStringUTFChars(grammar, nullptr);
+    llama_token trigger = trigger_token;
+    llama_sampler *grammar_sampler =
+        llama_sampler_init_grammar_lazy_patterns(vocab, c_grammar, "root", nullptr, 0, &trigger, 1);
+    env->ReleaseStringUTFChars(grammar, c_grammar);
+    if (!grammar_sampler) {
+        llama_free(ctx);
+        llama_model_free(model);
+        return 0;
+    }
+
+    // How the next token is picked from the model's predictions.
     llama_sampler *sampler = llama_sampler_chain_init(llama_sampler_chain_default_params());
+    llama_sampler_chain_add(sampler, grammar_sampler);  // first: later steps see only allowed tokens
     // Penalize tokens seen in the last 64 (llama.cpp's default window), to avoid repetition.
     llama_sampler_chain_add(sampler, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), 64, 1.0f, 0.0f, presence_penalty));
     llama_sampler_chain_add(sampler, llama_sampler_init_top_k(top_k));
@@ -119,7 +135,6 @@ Java_io_github_tostapane_hven_LlamaEngine_load(JNIEnv *env, jobject /* this */, 
     auto *engine = new Engine{model, ctx, sampler, llama_batch_ext_init(ctx)};
     return reinterpret_cast<jlong>(engine);
 }
-
 // Feeds before + user_text + after, then generates until the end of the answer or stop().
 // Each piece of text goes to listener.onPiece(bytes) as soon as it's ready.
 // Returns 0 when done or stopped, 1 when the context is full, 2 on error.
@@ -129,6 +144,7 @@ Java_io_github_tostapane_hven_LlamaEngine_generate(JNIEnv *env, jobject /* this 
                                                    jbyteArray after, jobject listener) {
     auto *engine = reinterpret_cast<Engine *>(handle);
     engine->stop_requested = false;
+    llama_sampler_reset(engine->sampler);  // a grammar triggered last turn must not carry over
     const llama_vocab *vocab = llama_model_get_vocab(engine->model);
     llama_memory_t memory = llama_get_memory(engine->ctx);
 

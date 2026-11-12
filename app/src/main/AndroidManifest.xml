@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Lets Hven ask the clock app to set timers and alarms. A "normal" permission: no prompt. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
     <!-- allowBackup=false: app data never goes to cloud backups. -->
     <application
         android:allowBackup="false"

@@ -33,9 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -52,6 +54,8 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var loadSeconds = 0.0
     @Volatile private var firstWordSeconds = 0.0
     private var isFirstTurn = true
+    // The chat line of the last tool call, reported to the model at the start of the next turn.
+    private var toolResult: String? = null
 
     // Compose redraws whatever reads these when they change.
     val messages = mutableStateListOf<Message>()
@@ -72,10 +76,13 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             handle = LlamaEngine.load(
                 file.path,
                 ModelConfig.CONTEXT_SIZE,
-                ModelConfig.THREADS,
+                ModelConfig.PROMPT_THREADS,
+                ModelConfig.GENERATION_THREADS,
                 ModelConfig.TEMPERATURE,
                 ModelConfig.TOP_K,
                 ModelConfig.PRESENCE_PENALTY,
+                ModelConfig.GRAMMAR,
+                ModelConfig.TOOL_CALL_TOKEN,
             )
             loadSeconds = secondsSince(start)
             ready = handle != 0L
@@ -95,10 +102,12 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         messages += Message(fromUser = false, text = "")
         generating = true
         viewModelScope.launch(modelThread) {
-            val turn = ModelConfig.turn(text, isFirstTurn)
+            val turn = ModelConfig.turn(text, isFirstTurn, toolResult)
             isFirstTurn = false
+            toolResult = null
             val start = System.nanoTime()
             firstWordSeconds = 0.0
+            val answer = StringBuilder()
             val result = LlamaEngine.generate(
                 handle,
                 turn.before.toByteArray(),
@@ -107,8 +116,14 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             ) { bytes ->
                 // What the user waits for: from tapping Send to the first piece of the answer.
                 if (firstWordSeconds == 0.0) firstWordSeconds = secondsSince(start)
-                val last = messages.lastIndex
-                messages[last] = messages[last].copy(text = messages[last].text + bytes.decodeToString())
+                answer.append(bytes.decodeToString())
+                messages[messages.lastIndex] = Message(fromUser = false, text = answer.toString())
+            }
+            val call = ModelConfig.parseToolCall(answer.toString())
+            if (call != null) {
+                val line = withContext(Dispatchers.Main) { Tools.run(getApplication(), call) }
+                toolResult = line
+                messages[messages.lastIndex] = Message(fromUser = false, text = answer.toString().trimEnd() + "\n\n" + line)
             }
             status = when (result) {
                 LlamaEngine.CONTEXT_FULL -> "The chat is full: start a new one."
@@ -122,7 +137,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     // The numbers of the current (or last) answer. Safe to call from any thread.
     private fun statsLine(): String {
-        val ram = "RAM ${residentMemoryMb()} MB"
+        val ram = "RAM ${memoryMb("VmRSS")} MB · swap ${memoryMb("VmSwap")} MB"
         if (!ready) return ram
         val (promptTokens, promptMs, generatedTokens, generateMs) = LlamaEngine.stats(handle)
         return "load %.1f s · first word %.1f s\nprompt %.0f tok, %.0f tok/s · answer %.0f tok, %.1f tok/s · %s".format(
@@ -145,6 +160,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(modelThread) {
             LlamaEngine.reset(handle)
             isFirstTurn = true
+            toolResult = null
         }
     }
 
@@ -162,10 +178,11 @@ private fun secondsSince(startNanos: Long) = (System.nanoTime() - startNanos) / 
 
 private fun perSecond(count: Double, ms: Double) = if (ms > 0) count / ms * 1000 else 0.0
 
-// Memory the app holds in RAM right now, including the parts of the model file read so far.
-private fun residentMemoryMb(): Long =
+// A memory figure of this process in MB, from a /proc/self/status line like "VmSwap:   1922028 kB".
+// VmRSS is what's in RAM now; VmSwap is what Android moved out to swap.
+private fun memoryMb(field: String): Long =
     File("/proc/self/status").readLines()
-        .first { it.startsWith("VmRSS:") } // e.g. "VmRSS:   1634512 kB"
+        .first { it.startsWith("$field:") }
         .split(Regex("\\s+"))[1].toLong() / 1024
 
 @Composable

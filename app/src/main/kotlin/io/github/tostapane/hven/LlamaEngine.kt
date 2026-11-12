@@ -17,14 +17,18 @@ object LlamaEngine {
         System.loadLibrary("hven")
     }
 
-    // Returns the handle, or 0 if the model can't be loaded.
+    // Returns the handle, or 0 if the model can't be loaded or the grammar doesn't parse.
+    // The grammar stays off until the model emits triggerToken.
     external fun load(
         path: String,
         contextSize: Int,
-        threads: Int,
+        promptThreads: Int,
+        generationThreads: Int,
         temperature: Float,
         topK: Int,
         presencePenalty: Float,
+        grammar: String,
+        triggerToken: Int,
     ): Long
 
     // Feeds before + userText + after, then blocks until the answer is complete, stop() is called,
