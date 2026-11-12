@@ -4,7 +4,7 @@ A private assistant for Android that runs a small language model entirely on you
 
 Hven supports only a few models, and each one is tested end to end on real phones. The goal is an assistant that is fast and reliable rather than powerful.
 
-> **Status: early development.** The app builds and runs, but it doesn't do anything useful yet. Next up: a local chat.
+> **Status: early development.** A local chat works on the phone, but the model file has to be copied over by hand and the assistant can't do anything on the phone yet. Next up: tool calls (timer, alarm, calendar event).
 
 ## Requirements
 
@@ -29,4 +29,4 @@ export ANDROID_HOME="$HOME/Android/Sdk"
 
 ## License
 
-Not decided yet.
+MIT. See [LICENSE](LICENSE).

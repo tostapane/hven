@@ -1,4 +1,5 @@
 TODO.md
+M2-design.md
 
 # Gradle and build outputs
 .gradle/
@@ -6,3 +7,6 @@ TODO.md
 build/
 .cxx/
 local.properties
+
+# Editor settings
+.vscode/

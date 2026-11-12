@@ -9,16 +9,18 @@ An open-source Android app: a **private assistant that runs a small LLM entirely
 - **Reliability and speed** are the edge. Being less powerful than Google's assistant is fine; being flaky or slow is not.
 - **vs PocketPal AI** (generic GGUF runner with a chat UI): curated, validated models, zero setup, and actions instead of just chat.
 - **vs Google** (Gemini, AICore, AppFunctions, ADK for Android): independent, open models, works on de-Googled ROMs.
-- **vs GUAPPA, PokeClaw, MobileClaw, Aiden (iOS):** those are thin apps over generic runtimes.
 
 ### Milestones
 
 - **M0 — Skeleton:** a minimal app that builds and installs from the command line and runs on a physical device.
 - **M1 — Inference:** load one model on-device and stream tokens to the UI.
-- **M2 — Tool calls:** model adapter for the chosen model, grammar-constrained tool calls, about 5 tools (alarm, timer, calendar event, note, open app).
-- **M3 — KV cache:** save and load prefix state to disk. Measure time-to-first-token with vs without.
-- **M4 — Eval suite:** automated task set on real devices measuring success rate, time-to-first-token, tokens/sec and battery. Compare candidate models (Qwen3.5-2B vs Gemma 4 E2B) and pick the v1 model.
-- **M5 — Assistant features:** keep the model warm in the background, read notifications, persistent memory.
+- **M2 — Tool calls:** grammar-constrained tool calls for the chosen model, three tools (timer, alarm, calendar event), all through Intents.
+- **M3 — Warm start:** prefill the system prompt and tool definitions at launch. Measure time-to-first-token with vs without.
+- **M4 — First release (v0.1):** in-app model download, release build, an app a stranger can install and use.
+- **M5 — Eval suite:** automated task set measuring tool-call success rate on a laptop, and time-to-first-token, tokens/sec and battery on real devices. Compare candidate models (Qwen3.5-2B vs Gemma 4 E2B) and pick the v1 model.
+- **M6 — KV cache:** save and load prefix state to disk. Measure time-to-first-token with vs without.
+- **M7 — More tools:** note, open app.
+- **M8 — Assistant features:** keep the model warm in the background, read notifications, persistent memory.
 - **Later:** model-specific kernels, GPU backend, NPU, AppFunctions backend, more validated models.
 
 ### Out of scope for now
@@ -29,7 +31,7 @@ Voice, iOS, cloud fallback, a generic model browser.
 
 1. **KISS.** Everything is implemented in the simplest way that works and can be easily explained. If a design can't be explained simply, it's the wrong design.
 2. **Few models, each fully validated.** Curated list only; no loading arbitrary models. Start with one, add more through the same validation pipeline.
-3. **Model adapter interface from day one.** It covers prompt template, tool-call format and parser, grammar, and quantization config per model.
+3. **One config object per model.** It covers prompt template, tool-call format and parser, grammar, and quantization config. It becomes an interface only when a second model exists.
 4. **Persistent KV prefix cache.** The system prompt and tool definitions are prefilled once, saved to disk, and reloaded instantly. This attacks slow prefill, the main latency problem on phones.
 5. **Grammar-constrained tool calls**, so the model can't emit malformed calls.
 6. **Fully on-device.** No network except the one-time model download.
@@ -77,6 +79,16 @@ Everything else gets decided when a milestone needs it.
 
 - Pin dependency versions.
 - Language-specific rules get added once the stack is chosen.
+
+### Comments
+
+Applies to new and changed code; existing comments get fixed only when their code is touched.
+
+- Every comment is concise, clear and simple.
+- **File header:** at the very top, what the file does. At most 4 lines; usually 2.
+- **Functions:** one or two lines above each function.
+- **Inside functions:** no comments, except a rare, very short one-liner.
+- Short examples of a format (e.g. sample lines of generated text) are fine and don't count toward the limits.
 
 ## Dev environment
 
